@@ -1,187 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App with Pre-set Users</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-
-        #chatBox {
-            width: 100%;
-            max-width: 600px;
-            height: 400px;
-            margin: 0 auto;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            padding: 10px;
-            overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        #chatInput {
-            width: calc(100% - 22px);
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
-
-        button {
-            padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #loginSection {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #chatSection {
-            display: none;
-        }
-
-        .message {
-            font-size: 14px;
-            margin: 5px 0;
-        }
-
-        .username {
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messaging Interface</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .messages {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #f1f1f1;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .message.sent {
+      background-color: #d1e7dd;
+      text-align: right;
+    }
+    .message.received {
+      background-color: #f8d7da;
+    }
+    input, button {
+      width: calc(100% - 20px);
+      margin: 5px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #28a745;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h2>Messaging Interface</h2>
+    <div class="messages" id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type your message..." />
+    <button id="sendButton">Send</button>
+  </div>
 
-    <div id="loginSection">
-        <h2>Login with Pre-set Users</h2>
-        <input type="text" id="usernameInput" placeholder="Enter username" />
-        <input type="password" id="passwordInput" placeholder="Enter password" />
-        <button onclick="loginUser()">Login</button>
-    </div>
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
 
-    <div id="chatSection">
-        <h2>Welcome <span id="username"></span>, Start Chatting!</h2>
-        
-        <!-- Chatbox where messages will appear -->
-        <div id="chatBox"></div>
+    sendButton.addEventListener('click', () => {
+      const messageText = messageInput.value.trim();
 
-        <!-- Chat input field and button -->
-        <input type="text" id="chatInput" placeholder="Type a message..." />
-        <button onclick="sendMessage()">Send</button>
-    </div>
+      if (messageText) {
+        // Create a new message div
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message', 'sent');
+        messageDiv.textContent = messageText;
 
-    <script>
-        // Pre-set users and passwords
-        const users = {
-            "x2x": "password1",
-            "MrSticker23": "password2",
-            "user3": "password3"
-        };
+        // Add the message to the messages container
+        messagesDiv.appendChild(messageDiv);
 
-        // Initialize messages array (no persistent storage here)
-        let messages = [];
+        // Scroll to the bottom of the messages container
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-        // Function to display all messages
-        function displayMessages() {
-            const chatBox = document.getElementById("chatBox");
-            chatBox.innerHTML = '';  // Clear previous messages
+        // Clear the input field
+        messageInput.value = '';
+      }
+    });
 
-            // Display each message
-            messages.forEach((msg) => {
-                const messageElement = document.createElement("div");
-                messageElement.classList.add("message");
-                messageElement.innerHTML = `<span class="username">${msg.username}</span>: ${msg.message} <small>(${new Date(msg.timestamp).toLocaleTimeString()})</small>`;
-                chatBox.appendChild(messageElement);
-            });
-        }
-
-        // Function to handle sending a message
-        function sendMessage() {
-            const messageInput = document.getElementById("chatInput");
-            const message = messageInput.value.trim();
-            const username = localStorage.getItem("username");
-
-            if (message !== "") {
-                // Create a new message object
-                const newMessage = { message, username, timestamp: new Date().toISOString() };
-                messages.push(newMessage);  // Add to in-memory messages
-
-                // Trigger a storage event to sync messages across tabs
-                localStorage.setItem("chatMessages", JSON.stringify(messages));  // Store in localStorage temporarily for sync
-                
-                messageInput.value = "";  // Clear input field
-                displayMessages();  // Refresh the displayed messages
-            }
-        }
-
-        // Function to login user
-        function loginUser() {
-            const username = document.getElementById("usernameInput").value.trim();
-            const password = document.getElementById("passwordInput").value.trim();
-
-            if (username === "" || password === "") {
-                alert("Please enter both a username and a password.");
-                return;
-            }
-
-            // Check if the username exists and the password matches
-            if (users[username] && users[username] === password) {
-                // Store the logged-in username in localStorage
-                localStorage.setItem("username", username);
-
-                // Hide login section, show chat section
-                document.getElementById("loginSection").style.display = "none";
-                document.getElementById("chatSection").style.display = "block";
-                document.getElementById("username").textContent = username;
-
-                // Start displaying previous messages
-                displayMessages();
-            } else {
-                alert("Incorrect username or password.");
-            }
-        }
-
-        // Listen for changes to localStorage to sync messages across tabs
-        window.addEventListener("storage", (event) => {
-            if (event.key === "chatMessages") {
-                messages = JSON.parse(event.newValue);  // Update the messages array with the new data
-                displayMessages();  // Re-display messages when chatMessages changes
-            }
-        });
-
-        // Call displayMessages when the page is loaded to show existing chat history
-        window.onload = function () {
-            const username = localStorage.getItem("username");
-            if (username) {
-                // If already logged in, show chat section
-                document.getElementById("loginSection").style.display = "none";
-                document.getElementById("chatSection").style.display = "block";
-                document.getElementById("username").textContent = username;
-
-                // If there are any stored messages, display them
-                const storedMessages = localStorage.getItem("chatMessages");
-                if (storedMessages) {
-                    messages = JSON.parse(storedMessages);
-                    displayMessages();
-                }
-            }
-        };
-    </script>
-
+    // Allow pressing "Enter" to send the message
+    messageInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        sendButton.click();
+      }
+    });
+  </script>
 </body>
 </html>
