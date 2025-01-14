@@ -206,22 +206,13 @@
           const userRow = document.createElement('div');
           userRow.className = 'user-row';
           userRow.innerHTML = `${userData.username} - Admin: ${userData.isAdmin} - Banned: ${userData.banned}
-            <button class="ban-button" data-user-id="${childSnapshot.key}">Ban</button>`;
+            <button class="ban-button" onclick="banUser('${childSnapshot.key}')">Ban</button>`;
           userList.appendChild(userRow);
-        });
-
-        // Add event listeners for ban buttons
-        const banButtons = document.querySelectorAll('.ban-button');
-        banButtons.forEach((button) => {
-          button.addEventListener('click', (event) => {
-            const userId = event.target.getAttribute('data-user-id');
-            banUser(userId); // Call the banUser function
-          });
         });
       });
     }
 
-    // Ban a user (function moved to global scope)
+    // Ban a user
     function banUser(userId) {
       update(ref(database, `users/${userId}`), {
         banned: true
@@ -265,18 +256,11 @@
       if (message && currentUser) {
         push(ref(database, 'messages'), {
           message: message,
-          userId: currentUser.uid,
-          user: currentUser.email.split('@')[0],
-          timestamp: Date.now()
+          user: currentUser.email.split('@')[0], // Get username from email
+          timestamp: Date.now(),
+          userId: currentUser.uid // Include userId for banning check
         });
         messageInput.value = ''; // Clear input
-      }
-    });
-
-    // Optional: Allow pressing Enter to send a message
-    messageInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        sendButton.click();
       }
     });
   </script>
