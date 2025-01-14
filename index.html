@@ -61,11 +61,10 @@
 
   <!-- Firebase -->
   <script type="module">
-    // Import Firebase modules
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
 
-    // Firebase configuration (replace with your own Firebase project details)
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyA8BC-gQNHgnlA8N39Z396SkPK2Q8EO668",
       authDomain: "messages-2ab4c.firebaseapp.com",
@@ -82,30 +81,64 @@
 
     // References
     const messagesRef = ref(database, 'messages');
+    const usersRef = ref(database, 'users');
     const messagesDiv = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
 
+    let username;
+
+    // Prompt for username on first visit
+    function getUsername() {
+      let savedUsername = localStorage.getItem('username');
+      if (!savedUsername) {
+        savedUsername = prompt("Enter your username:");
+        if (savedUsername && savedUsername.trim()) {
+          username = savedUsername.trim();
+          localStorage.setItem('username', username);
+
+          // Log the signup in Firebase
+          const userRef = ref(database, `users/${username}`);
+          set(userRef, {
+            username: username,
+            joinedAt: new Date().toISOString()
+          });
+        } else {
+          alert("Username cannot be empty. Reloading...");
+          location.reload();
+        }
+      } else {
+        username = savedUsername;
+      }
+    }
+
+    // Initialize username
+    getUsername();
+
     // Function to add a message to the UI
-    function addMessageToUI(message) {
+    function addMessageToUI(message, user) {
       const messageDiv = document.createElement('div');
       messageDiv.className = 'message';
-      messageDiv.textContent = message;
+      messageDiv.textContent = `${user}: ${message}`;
       messagesDiv.appendChild(messageDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
     }
 
     // Listen for new messages
     onChildAdded(messagesRef, (snapshot) => {
-      const message = snapshot.val();
-      addMessageToUI(message);
+      const { message, user } = snapshot.val();
+      addMessageToUI(message, user);
     });
 
     // Send a new message
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       if (message) {
-        push(messagesRef, message); // Add message to the database
+        push(messagesRef, {
+          message: message,
+          user: username,
+          timestamp: Date.now()
+        }); // Add message to the database
         messageInput.value = ''; // Clear input
       }
     });
