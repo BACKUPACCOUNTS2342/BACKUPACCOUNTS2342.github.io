@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #chatBox {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            margin: 0 auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #chatInput {
+            width: calc(100% - 22px);
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Simple Chat App</h1>
+    
+    <!-- Chatbox where messages will appear -->
+    <div id="chatBox"></div>
+    
+    <!-- Chat input field and button -->
+    <input type="text" id="chatInput" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        // Function to display all messages from localStorage
+        function displayMessages() {
+            const chatBox = document.getElementById("chatBox");
+            const messages = JSON.parse(localStorage.getItem("chatMessages")) || [];
+            chatBox.innerHTML = '';  // Clear previous messages
+            messages.forEach((message) => {
+                const messageElement = document.createElement("p");
+                messageElement.textContent = message;
+                chatBox.appendChild(messageElement);
+            });
+        }
+
+        // Function to send a message
+        function sendMessage() {
+            const messageInput = document.getElementById("chatInput");
+            const message = messageInput.value.trim();
+
+            if (message !== "") {
+                const messages = JSON.parse(localStorage.getItem("chatMessages")) || [];
+                messages.push(message);
+                localStorage.setItem("chatMessages", JSON.stringify(messages)); // Save to localStorage
+                messageInput.value = ""; // Clear input field
+                displayMessages(); // Refresh the displayed messages
+            }
+        }
+
+        // Call displayMessages when the page is loaded to show existing chat history
+        window.onload = displayMessages;
+    </script>
+
+</body>
+</html>
