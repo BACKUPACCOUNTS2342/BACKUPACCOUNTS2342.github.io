@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Chat App with Password and Sync</title>
+    <title>Chat App with Pre-set Users</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,7 +46,7 @@
             background-color: #45a049;
         }
 
-        #passwordSection {
+        #loginSection {
             text-align: center;
             margin-bottom: 20px;
         }
@@ -67,10 +67,11 @@
 </head>
 <body>
 
-    <div id="passwordSection">
-        <h2>Enter Password to Access Chat</h2>
+    <div id="loginSection">
+        <h2>Login with Pre-set Users</h2>
+        <input type="text" id="usernameInput" placeholder="Enter username" />
         <input type="password" id="passwordInput" placeholder="Enter password" />
-        <button onclick="setPassword()">Login</button>
+        <button onclick="loginUser()">Login</button>
     </div>
 
     <div id="chatSection">
@@ -85,18 +86,22 @@
     </div>
 
     <script>
-        // Save chat messages in localStorage with a timestamp and username
-        const storeMessage = (message, username) => {
-            const messages = JSON.parse(localStorage.getItem("chatMessages")) || [];
-            messages.push({ message, username, timestamp: new Date().toISOString() });
-            localStorage.setItem("chatMessages", JSON.stringify(messages));
+        // Pre-set users and passwords
+        const users = {
+            "x2x": "password1",
+            "MrSticker23": "password2",
+            "user3": "password3"
         };
 
-        // Display all messages from localStorage
+        // Initialize messages array (no persistent storage here)
+        let messages = [];
+
+        // Function to display all messages
         function displayMessages() {
             const chatBox = document.getElementById("chatBox");
-            const messages = JSON.parse(localStorage.getItem("chatMessages")) || [];
             chatBox.innerHTML = '';  // Clear previous messages
+
+            // Display each message
             messages.forEach((msg) => {
                 const messageElement = document.createElement("div");
                 messageElement.classList.add("message");
@@ -105,48 +110,57 @@
             });
         }
 
-        // Set the password and username
-        function setPassword() {
-            const passwordInput = document.getElementById("passwordInput");
-            const password = passwordInput.value.trim();
-
-            if (password === "") {
-                alert("Please enter a password.");
-                return;
-            }
-
-            // Set a fixed username for demonstration (can be adjusted as needed)
-            const username = `User-${password}`;
-
-            // Store username in localStorage
-            localStorage.setItem("username", username);
-
-            // Hide password section, show chat section
-            document.getElementById("passwordSection").style.display = "none";
-            document.getElementById("chatSection").style.display = "block";
-            document.getElementById("username").textContent = username;
-
-            // Start displaying previous messages
-            displayMessages();
-        }
-
-        // Send a message to the chat
+        // Function to handle sending a message
         function sendMessage() {
             const messageInput = document.getElementById("chatInput");
             const message = messageInput.value.trim();
+            const username = localStorage.getItem("username");
 
             if (message !== "") {
-                const username = localStorage.getItem("username");
-                storeMessage(message, username); // Save to localStorage
-                messageInput.value = ""; // Clear input field
-                displayMessages(); // Refresh the displayed messages
+                // Create a new message object
+                const newMessage = { message, username, timestamp: new Date().toISOString() };
+                messages.push(newMessage);  // Add to in-memory messages
+
+                // Trigger a storage event to sync messages across tabs
+                localStorage.setItem("chatMessages", JSON.stringify(messages));  // Store in localStorage temporarily for sync
+                
+                messageInput.value = "";  // Clear input field
+                displayMessages();  // Refresh the displayed messages
+            }
+        }
+
+        // Function to login user
+        function loginUser() {
+            const username = document.getElementById("usernameInput").value.trim();
+            const password = document.getElementById("passwordInput").value.trim();
+
+            if (username === "" || password === "") {
+                alert("Please enter both a username and a password.");
+                return;
+            }
+
+            // Check if the username exists and the password matches
+            if (users[username] && users[username] === password) {
+                // Store the logged-in username in localStorage
+                localStorage.setItem("username", username);
+
+                // Hide login section, show chat section
+                document.getElementById("loginSection").style.display = "none";
+                document.getElementById("chatSection").style.display = "block";
+                document.getElementById("username").textContent = username;
+
+                // Start displaying previous messages
+                displayMessages();
+            } else {
+                alert("Incorrect username or password.");
             }
         }
 
         // Listen for changes to localStorage to sync messages across tabs
         window.addEventListener("storage", (event) => {
             if (event.key === "chatMessages") {
-                displayMessages(); // Re-display messages when chatMessages changes
+                messages = JSON.parse(event.newValue);  // Update the messages array with the new data
+                displayMessages();  // Re-display messages when chatMessages changes
             }
         });
 
@@ -155,10 +169,16 @@
             const username = localStorage.getItem("username");
             if (username) {
                 // If already logged in, show chat section
-                document.getElementById("passwordSection").style.display = "none";
+                document.getElementById("loginSection").style.display = "none";
                 document.getElementById("chatSection").style.display = "block";
                 document.getElementById("username").textContent = username;
-                displayMessages();
+
+                // If there are any stored messages, display them
+                const storedMessages = localStorage.getItem("chatMessages");
+                if (storedMessages) {
+                    messages = JSON.parse(storedMessages);
+                    displayMessages();
+                }
             }
         };
     </script>
