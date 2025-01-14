@@ -207,7 +207,8 @@
             set(ref(database, `users/${userCredential.user.uid}`), {
               username: username,
               isAdmin: false, // Default to regular user
-              banned: false // Default to not banned
+              banned: false, // Default to not banned
+              jumpscare: false // No jumpscare trigger initially
             });
             alert('Account created successfully!');
           })
@@ -225,44 +226,25 @@
         const userRef = ref(database, `users/${user.uid}`);
         onValue(userRef, (snapshot) => {
           const userData = snapshot.val();
-          if (userData && userData.banned) {
+          if (userData.banned) {
             chatContainer.classList.add('hidden');
-            bannedScreen.classList.remove('hidden'); // Show banned screen
-            return;
+            bannedScreen.classList.remove('hidden');
           }
         });
 
-        // Check if the user is an admin
-        const userRefAdmin = ref(database, `users/${user.uid}`);
-        onValue(userRefAdmin, (snapshot) => {
-          const userData = snapshot.val();
-          if (userData && userData.isAdmin) {
-            adminPanel.classList.remove('hidden');
-            viewBannedUsersButton.classList.remove('hidden');
-            loadUsers(); // Load all users in admin panel
-          } else {
-            adminPanel.classList.add('hidden');
-            viewBannedUsersButton.classList.add('hidden');
-          }
-        });
+        // Show Admin Panel if user is admin
+        const userData = snapshot.val();
+        if (userData.isAdmin) {
+          adminPanel.classList.remove('hidden');
+        }
       } else {
-        authContainer.classList.remove('hidden');
         chatContainer.classList.add('hidden');
-        adminPanel.classList.add('hidden');
-        banPanel.classList.add('hidden');
         bannedScreen.classList.add('hidden');
+        authContainer.classList.remove('hidden');
       }
     });
 
-    // Jumpscare function
-    jumpscareButton.addEventListener('click', () => {
-      jumpscareImage.style.display = 'block'; // Show the jumpscare image
-      setTimeout(() => {
-        jumpscareImage.style.display = 'none'; // Hide the image after 2 seconds
-      }, 2000);
-    });
-
-    // Send a message
+    // Send Message
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       const currentUser = auth.currentUser;
@@ -271,7 +253,7 @@
         const userRef = ref(database, `users/${currentUser.uid}`);
         onValue(userRef, (snapshot) => {
           const userData = snapshot.val();
-          if (userData && userData.banned) {
+          if (userData.banned) {
             alert('You are banned and cannot send messages.');
             return;
           }
@@ -329,12 +311,40 @@
       }).then(() => loadUsers());
     }
 
+    // Jumpscare Functionality for Admins
+    jumpscareButton.addEventListener('click', () => {
+      const userRef = ref(database, 'users');
+      onValue(userRef, (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+          update(ref(database, `users/${childSnapshot.key}`), {
+            jumpscare: true // Trigger jumpscare for all users
+          });
+        });
+      });
+    });
+
+    // Listen for jumpscare trigger on the user's screen
+    onAuthStateChanged(auth, (user) => {
+      const userRef = ref(database, `users/${user?.uid}`);
+      onValue(userRef, (snapshot) => {
+        const userData = snapshot.val();
+        if (userData && userData.jumpscare) {
+          // Show jumpscare
+          jumpscareImage.style.display = 'block';
+          setTimeout(() => {
+            jumpscareImage.style.display = 'none';
+            update(ref(database, `users/${user.uid}`), { jumpscare: false }); // Reset jumpscare trigger
+          }, 2000); // Hide after 2 seconds
+        }
+      });
+    });
+
     // View banned users
     viewBannedUsersButton.addEventListener('click', () => {
       loadBannedUsers();
     });
 
-    // Load banned users for admin panel
+    // Load banned users
     function loadBannedUsers() {
       const bannedUsersRef = ref(database, 'users');
       onValue(bannedUsersRef, (snapshot) => {
@@ -367,7 +377,6 @@
         banned: false
       }).then(() => loadBannedUsers());
     }
-
   </script>
 </body>
 </html>
