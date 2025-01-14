@@ -14,6 +14,9 @@
     h1 {
       text-align: center;
     }
+    .hidden {
+      display: none;
+    }
     .messages {
       border: 1px solid #ddd;
       border-radius: 5px;
@@ -31,11 +34,12 @@
     .input-group {
       display: flex;
     }
-    input[type="text"] {
+    input[type="text"], input[type="email"], input[type="password"] {
       flex: 1;
       padding: 10px;
+      margin-bottom: 10px;
       border: 1px solid #ddd;
-      border-radius: 5px 0 0 5px;
+      border-radius: 5px;
       outline: none;
     }
     button {
@@ -43,7 +47,7 @@
       background-color: #28a745;
       color: white;
       border: none;
-      border-radius: 0 5px 5px 0;
+      border-radius: 5px;
       cursor: pointer;
     }
     button:hover {
@@ -53,16 +57,30 @@
 </head>
 <body>
   <h1>Realtime Messaging</h1>
-  <div class="messages" id="messages"></div>
-  <div class="input-group">
-    <input type="text" id="messageInput" placeholder="Type your message..." />
-    <button id="sendButton">Send</button>
+
+  <!-- Authentication Forms -->
+  <div id="authContainer">
+    <h2 id="authTitle">Sign Up</h2>
+    <input type="email" id="emailInput" placeholder="Email" required />
+    <input type="password" id="passwordInput" placeholder="Password" required />
+    <button id="authButton">Sign Up</button>
+    <p id="toggleAuth">Already have an account? <a href="#" id="toggleAuthLink">Login</a></p>
   </div>
 
-  <!-- Firebase -->
+  <!-- Messaging UI -->
+  <div id="chatContainer" class="hidden">
+    <div class="messages" id="messages"></div>
+    <div class="input-group">
+      <input type="text" id="messageInput" placeholder="Type your message..." />
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
 
     // Firebase configuration
     const firebaseConfig = {
@@ -78,42 +96,68 @@
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
+    const auth = getAuth(app);
 
-    // References
-    const messagesRef = ref(database, 'messages');
-    const usersRef = ref(database, 'users');
+    // DOM Elements
+    const authContainer = document.getElementById('authContainer');
+    const chatContainer = document.getElementById('chatContainer');
+    const authTitle = document.getElementById('authTitle');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const authButton = document.getElementById('authButton');
+    const toggleAuth = document.getElementById('toggleAuth');
+    const toggleAuthLink = document.getElementById('toggleAuthLink');
     const messagesDiv = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
 
-    let username;
+    let isLogin = false;
 
-    // Prompt for username on first visit
-    function getUsername() {
-      let savedUsername = localStorage.getItem('username');
-      if (!savedUsername) {
-        savedUsername = prompt("Enter your username:");
-        if (savedUsername && savedUsername.trim()) {
-          username = savedUsername.trim();
-          localStorage.setItem('username', username);
+    // Toggle between Sign Up and Login
+    toggleAuthLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      isLogin = !isLogin;
+      authTitle.textContent = isLogin ? 'Login' : 'Sign Up';
+      authButton.textContent = isLogin ? 'Login' : 'Sign Up';
+      toggleAuth.innerHTML = isLogin
+        ? `Don't have an account? <a href="#" id="toggleAuthLink">Sign Up</a>`
+        : `Already have an account? <a href="#" id="toggleAuthLink">Login</a>`;
+    });
 
-          // Log the signup in Firebase
-          const userRef = ref(database, `users/${username}`);
-          set(userRef, {
-            username: username,
-            joinedAt: new Date().toISOString()
-          });
-        } else {
-          alert("Username cannot be empty. Reloading...");
-          location.reload();
-        }
-      } else {
-        username = savedUsername;
+    // Handle Sign Up or Login
+    authButton.addEventListener('click', () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!email || !password) {
+        alert('Please fill out all fields.');
+        return;
       }
-    }
 
-    // Initialize username
-    getUsername();
+      if (isLogin) {
+        signInWithEmailAndPassword(auth, email, password)
+          .then(() => alert('Logged in successfully!'))
+          .catch((error) => alert(error.message));
+      } else {
+        createUserWithEmailAndPassword(auth, email, password)
+          .then(() => alert('Account created successfully!'))
+          .catch((error) => alert(error.message));
+      }
+    });
+
+    // Monitor Authentication State
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authContainer.classList.add('hidden');
+        chatContainer.classList.remove('hidden');
+      } else {
+        authContainer.classList.remove('hidden');
+        chatContainer.classList.add('hidden');
+      }
+    });
+
+    // References
+    const messagesRef = ref(database, 'messages');
 
     // Function to add a message to the UI
     function addMessageToUI(message, user) {
@@ -134,19 +178,13 @@
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       if (message) {
+        const currentUser = auth.currentUser;
         push(messagesRef, {
           message: message,
-          user: username,
+          user: currentUser.email, // Use the authenticated user's email
           timestamp: Date.now()
-        }); // Add message to the database
+        });
         messageInput.value = ''; // Clear input
-      }
-    });
-
-    // Optional: Allow pressing Enter to send a message
-    messageInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        sendButton.click();
       }
     });
   </script>
