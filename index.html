@@ -93,6 +93,7 @@
     <h2>Admin Panel</h2>
     <div class="admin-panel" id="userList"></div>
     <button id="viewBannedUsersButton">View Banned Users</button>
+    <button class="lockdown-button" id="lockdownButton">Lockdown</button>
   </div>
 
   <!-- Ban Panel -->
@@ -155,6 +156,27 @@
         : `Already have an account? <a href="#">Login</a>`;
     });
 
+    //LockdownButton Logic
+lockdownButton.addEventListener('click', () => {
+  if (isLockedDown) {
+    const code = prompt('Enter the unlock code:');
+    if (code === '1234') { // Replace '1234' with a secure code
+      isLockedDown = false;
+      update(ref(database, 'lockdown'), { locked: false });
+      alert('Website unlocked!');
+    } else {
+      alert('Incorrect code.');
+    }
+  } else {
+    isLockedDown = true;
+    update(ref(database, 'lockdown'), { locked: true });
+    alert('Website is now in lockdown mode!');
+  }
+  onValue(ref(database, 'lockdown'), (snapshot) => {
+  const lockdownStatus = snapshot.val();
+  isLockedDown = lockdownStatus?.locked || false;
+  }
+});
     // Handle Sign Up or Login
     authButton.addEventListener('click', () => {
       const username = usernameInput.value.trim();
@@ -290,7 +312,11 @@
       .catch((error) => alert(error.message));
     }
 
-    // Send a message
+    // Send a messagedocument.getElementById('sendButton').addEventListener('click', () => {
+  if (isLockedDown) {
+    alert('The website is in lockdown. You cannot send messages.');
+    return;
+    
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       const currentUser = auth.currentUser;
