@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Realtime Messaging App</title>
+  <title>Realtime Messaging App with Admin Panel</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -11,13 +11,13 @@
       margin: auto;
       padding: 20px;
     }
-    h1 {
+    h1, h2 {
       text-align: center;
     }
     .hidden {
       display: none;
     }
-    .messages {
+    .messages, .admin-panel {
       border: 1px solid #ddd;
       border-radius: 5px;
       padding: 10px;
@@ -25,7 +25,7 @@
       overflow-y: auto;
       margin-bottom: 10px;
     }
-    .message {
+    .message, .user-row {
       background: #f1f1f1;
       margin-bottom: 5px;
       padding: 8px;
@@ -56,7 +56,7 @@
   </style>
 </head>
 <body>
-  <h1>Realtime Messaging</h1>
+  <h1>Realtime Messaging App</h1>
 
   <!-- Authentication Forms -->
   <div id="authContainer">
@@ -76,10 +76,16 @@
     </div>
   </div>
 
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="hidden">
+    <h2>Admin Panel</h2>
+    <div class="admin-panel" id="userList"></div>
+  </div>
+
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onChildAdded, onValue, update } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
 
     // Firebase configuration
@@ -101,6 +107,8 @@
     // DOM Elements
     const authContainer = document.getElementById('authContainer');
     const chatContainer = document.getElementById('chatContainer');
+    const adminPanel = document.getElementById('adminPanel');
+    const userList = document.getElementById('userList');
     const authTitle = document.getElementById('authTitle');
     const usernameInput = document.getElementById('usernameInput');
     const passwordInput = document.getElementById('passwordInput');
@@ -121,8 +129,8 @@
       authButton.textContent = isLogin ? 'Login' : 'Sign Up';
       usernameInput.style.display = isLogin ? 'none' : 'block'; // Hide username field for login
       toggleAuth.innerHTML = isLogin
-        ? `Don't have an account? <a href="#" id="toggleAuthLink">Sign Up</a>`
-        : `Already have an account? <a href="#" id="toggleAuthLink">Login</a>`;
+        ? `Don't have an account? <a href="#">Sign Up</a>`
+        : `Already have an account? <a href="#">Login</a>`;
     });
 
     // Handle Sign Up or Login
@@ -141,17 +149,15 @@
       }
 
       if (isLogin) {
-        // Log in
         signInWithEmailAndPassword(auth, `${username}@chatapp.com`, password)
           .then(() => alert('Logged in successfully!'))
           .catch((error) => alert(error.message));
       } else {
-        // Sign up
         createUserWithEmailAndPassword(auth, `${username}@chatapp.com`, password)
           .then((userCredential) => {
-            // Save username to the database
             set(ref(database, `users/${userCredential.user.uid}`), {
-              username: username
+              username: username,
+              isAdmin: false // Default to regular user
             });
             alert('Account created successfully!');
           })
@@ -164,42 +170,52 @@
       if (user) {
         authContainer.classList.add('hidden');
         chatContainer.classList.remove('hidden');
+
+        // Check if the user is an admin
+        const userRef = ref(database, `users/${user.uid}`);
+        onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          if (userData && userData.isAdmin) {
+            adminPanel.classList.remove('hidden');
+            loadUsers(); // Load all users in admin panel
+          } else {
+            adminPanel.classList.add('hidden');
+          }
+        });
       } else {
         authContainer.classList.remove('hidden');
         chatContainer.classList.add('hidden');
+        adminPanel.classList.add('hidden');
       }
     });
 
-    // References
-    const messagesRef = ref(database, 'messages');
-
-    // Function to add a message to the UI
-    function addMessageToUI(message, user) {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'message';
-      messageDiv.textContent = `${user}: ${message}`;
-      messagesDiv.appendChild(messageDiv);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
+    // Load all users in the admin panel
+    function loadUsers() {
+      const usersRef = ref(database, 'users');
+      onValue(usersRef, (snapshot) => {
+        userList.innerHTML = '';
+        snapshot.forEach((childSnapshot) => {
+          const userData = childSnapshot.val();
+          const userRow = document.createElement('div');
+          userRow.className = 'user-row';
+          userRow.textContent = `${userData.username} - Admin: ${userData.isAdmin}`;
+          userList.appendChild(userRow);
+        });
+      });
     }
 
-    // Listen for new messages
-    onChildAdded(messagesRef, (snapshot) => {
-      const { message, user } = snapshot.val();
-      addMessageToUI(message, user);
-    });
-
-    // Send a new message
+    // Send messages
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       const currentUser = auth.currentUser;
 
       if (message) {
-        push(messagesRef, {
+        push(ref(database, 'messages'), {
           message: message,
-          user: currentUser.email.split('@')[0], // Extract username from email
+          user: currentUser.email.split('@')[0],
           timestamp: Date.now()
         });
-        messageInput.value = ''; // Clear input
+        messageInput.value = '';
       }
     });
   </script>
