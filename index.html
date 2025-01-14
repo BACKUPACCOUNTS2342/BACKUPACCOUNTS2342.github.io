@@ -85,7 +85,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onChildAdded, onValue, update } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onChildAdded, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
 
     // Firebase configuration
@@ -204,6 +204,31 @@
       });
     }
 
+    // Listen for new messages
+    const messagesRef = ref(database, 'messages');
+    onChildAdded(messagesRef, (snapshot) => {
+      const messageData = snapshot.val(); // Get the message object
+      if (messageData) {
+        const { message, user, timestamp } = messageData;
+        addMessageToUI(message, user, timestamp);
+      }
+    });
+
+    // Function to add a message to the UI
+    function addMessageToUI(message, user, timestamp) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+      
+      // Format the timestamp (optional)
+      const time = new Date(timestamp).toLocaleTimeString();
+
+      // Display message, user, and time
+      messageDiv.innerHTML = `<strong>${user}</strong>: ${message} <span style="font-size: 0.8em; color: #888;">(${time})</span>`;
+      
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
+    }
+
     // Send messages
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
@@ -212,7 +237,7 @@
       if (message) {
         push(ref(database, 'messages'), {
           message: message,
-          user: currentUser.email.split('@')[0],
+          user: currentUser.email.split('@')[0], // Get username from email
           timestamp: Date.now()
         });
         messageInput.value = '';
