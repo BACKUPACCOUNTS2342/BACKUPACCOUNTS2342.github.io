@@ -50,9 +50,6 @@
       background-color: #218838;
     }
   </style>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js"></script>
 </head>
 <body>
   <h1>Realtime Messaging</h1>
@@ -62,7 +59,12 @@
     <button id="sendButton">Send</button>
   </div>
 
-  <script>
+  <!-- Firebase -->
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
     // Firebase configuration (replace with your own Firebase project details)
     const firebaseConfig = {
       apiKey: "AIzaSyA8BC-gQNHgnlA8N39Z396SkPK2Q8EO668",
@@ -75,11 +77,11 @@
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
     // References
-    const messagesRef = database.ref('messages');
+    const messagesRef = ref(database, 'messages');
     const messagesDiv = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
@@ -94,7 +96,7 @@
     }
 
     // Listen for new messages
-    messagesRef.on('child_added', (snapshot) => {
+    onChildAdded(messagesRef, (snapshot) => {
       const message = snapshot.val();
       addMessageToUI(message);
     });
@@ -103,7 +105,7 @@
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
       if (message) {
-        messagesRef.push(message); // Add message to the database
+        push(messagesRef, message); // Add message to the database
         messageInput.value = ''; // Clear input
       }
     });
