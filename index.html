@@ -34,7 +34,7 @@
     .input-group {
       display: flex;
     }
-    input[type="text"], input[type="email"], input[type="password"] {
+    input[type="text"], input[type="password"] {
       flex: 1;
       padding: 10px;
       margin-bottom: 10px;
@@ -61,7 +61,7 @@
   <!-- Authentication Forms -->
   <div id="authContainer">
     <h2 id="authTitle">Sign Up</h2>
-    <input type="email" id="emailInput" placeholder="Email" required />
+    <input type="text" id="usernameInput" placeholder="Username" required />
     <input type="password" id="passwordInput" placeholder="Password" required />
     <button id="authButton">Sign Up</button>
     <p id="toggleAuth">Already have an account? <a href="#" id="toggleAuthLink">Login</a></p>
@@ -79,7 +79,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
 
     // Firebase configuration
@@ -102,7 +102,7 @@
     const authContainer = document.getElementById('authContainer');
     const chatContainer = document.getElementById('chatContainer');
     const authTitle = document.getElementById('authTitle');
-    const emailInput = document.getElementById('emailInput');
+    const usernameInput = document.getElementById('usernameInput');
     const passwordInput = document.getElementById('passwordInput');
     const authButton = document.getElementById('authButton');
     const toggleAuth = document.getElementById('toggleAuth');
@@ -119,6 +119,7 @@
       isLogin = !isLogin;
       authTitle.textContent = isLogin ? 'Login' : 'Sign Up';
       authButton.textContent = isLogin ? 'Login' : 'Sign Up';
+      usernameInput.style.display = isLogin ? 'none' : 'block'; // Hide username field for login
       toggleAuth.innerHTML = isLogin
         ? `Don't have an account? <a href="#" id="toggleAuthLink">Sign Up</a>`
         : `Already have an account? <a href="#" id="toggleAuthLink">Login</a>`;
@@ -126,21 +127,34 @@
 
     // Handle Sign Up or Login
     authButton.addEventListener('click', () => {
-      const email = emailInput.value.trim();
+      const username = usernameInput.value.trim();
       const password = passwordInput.value.trim();
 
-      if (!email || !password) {
-        alert('Please fill out all fields.');
+      if (!isLogin && !username) {
+        alert('Please enter a username.');
+        return;
+      }
+
+      if (!password) {
+        alert('Please enter a password.');
         return;
       }
 
       if (isLogin) {
-        signInWithEmailAndPassword(auth, email, password)
+        // Log in
+        signInWithEmailAndPassword(auth, `${username}@chatapp.com`, password)
           .then(() => alert('Logged in successfully!'))
           .catch((error) => alert(error.message));
       } else {
-        createUserWithEmailAndPassword(auth, email, password)
-          .then(() => alert('Account created successfully!'))
+        // Sign up
+        createUserWithEmailAndPassword(auth, `${username}@chatapp.com`, password)
+          .then((userCredential) => {
+            // Save username to the database
+            set(ref(database, `users/${userCredential.user.uid}`), {
+              username: username
+            });
+            alert('Account created successfully!');
+          })
           .catch((error) => alert(error.message));
       }
     });
@@ -177,11 +191,12 @@
     // Send a new message
     sendButton.addEventListener('click', () => {
       const message = messageInput.value.trim();
+      const currentUser = auth.currentUser;
+
       if (message) {
-        const currentUser = auth.currentUser;
         push(messagesRef, {
           message: message,
-          user: currentUser.email, // Use the authenticated user's email
+          user: currentUser.email.split('@')[0], // Extract username from email
           timestamp: Date.now()
         });
         messageInput.value = ''; // Clear input
