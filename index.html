@@ -53,6 +53,12 @@
     button:hover {
       background-color: #218838;
     }
+    .ban-button {
+      background-color: #dc3545;
+    }
+    .ban-button:hover {
+      background-color: #c82333;
+    }
   </style>
 </head>
 <body>
@@ -85,7 +91,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onChildAdded, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onChildAdded, onValue, update } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
 
     // Firebase configuration
@@ -157,7 +163,8 @@
           .then((userCredential) => {
             set(ref(database, `users/${userCredential.user.uid}`), {
               username: username,
-              isAdmin: false // Default to regular user
+              isAdmin: false, // Default to regular user
+              banned: false // Default to not banned
             });
             alert('Account created successfully!');
           })
@@ -198,33 +205,45 @@
           const userData = childSnapshot.val();
           const userRow = document.createElement('div');
           userRow.className = 'user-row';
-          userRow.textContent = `${userData.username} - Admin: ${userData.isAdmin}`;
+          userRow.innerHTML = `${userData.username} - Admin: ${userData.isAdmin} - Banned: ${userData.banned}
+            <button class="ban-button" onclick="banUser('${childSnapshot.key}')">Ban</button>`;
           userList.appendChild(userRow);
         });
+      });
+    }
+
+    // Ban a user
+    function banUser(userId) {
+      update(ref(database, `users/${userId}`), {
+        banned: true
+      }).then(() => {
+        alert('User banned successfully!');
       });
     }
 
     // Listen for new messages
     const messagesRef = ref(database, 'messages');
     onChildAdded(messagesRef, (snapshot) => {
-      const messageData = snapshot.val(); // Get the message object
-      if (messageData) {
-        const { message, user, timestamp } = messageData;
-        addMessageToUI(message, user, timestamp);
-      }
+      const messageData = snapshot.val();
+      const userId = messageData.userId;
+
+      // Check if the user is banned before displaying the message
+      const userRef = ref(database, `users/${userId}`);
+      onValue(userRef, (snapshot) => {
+        const userData = snapshot.val();
+        if (userData && !userData.banned) {
+          const { message, user, timestamp } = messageData;
+          addMessageToUI(message, user, timestamp);
+        }
+      });
     });
 
     // Function to add a message to the UI
     function addMessageToUI(message, user, timestamp) {
       const messageDiv = document.createElement('div');
       messageDiv.className = 'message';
-      
-      // Format the timestamp (optional)
       const time = new Date(timestamp).toLocaleTimeString();
-
-      // Display message, user, and time
       messageDiv.innerHTML = `<strong>${user}</strong>: ${message} <span style="font-size: 0.8em; color: #888;">(${time})</span>`;
-      
       messagesDiv.appendChild(messageDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
     }
@@ -234,13 +253,14 @@
       const message = messageInput.value.trim();
       const currentUser = auth.currentUser;
 
-      if (message) {
+      if (message && currentUser) {
         push(ref(database, 'messages'), {
           message: message,
           user: currentUser.email.split('@')[0], // Get username from email
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          userId: currentUser.uid // Include userId for banning check
         });
-        messageInput.value = '';
+        messageInput.value = ''; // Clear input
       }
     });
   </script>
