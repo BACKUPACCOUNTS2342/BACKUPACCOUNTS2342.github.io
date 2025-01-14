@@ -65,6 +65,21 @@
     .unban-button:hover {
       background-color: #e0a800;
     }
+    .ban-message {
+      text-align: center;
+      font-size: 24px;
+      color: red;
+    }
+    .jumpscare-image {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 9999;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -88,11 +103,17 @@
     </div>
   </div>
 
+  <!-- Banned Message Screen -->
+  <div id="bannedScreen" class="hidden">
+    <div class="ban-message">You have been banned from the chat.</div>
+  </div>
+
   <!-- Admin Panel -->
   <div id="adminPanel" class="hidden">
     <h2>Admin Panel</h2>
     <div class="admin-panel" id="userList"></div>
     <button id="viewBannedUsersButton">View Banned Users</button>
+    <button id="jumpscareButton">Jumpscare User</button>
   </div>
 
   <!-- Ban Panel -->
@@ -100,6 +121,9 @@
     <h2>Banned Users</h2>
     <div class="ban-panel" id="bannedUserList"></div>
   </div>
+
+  <!-- Jumpscare Image -->
+  <img id="jumpscareImage" class="jumpscare-image" src="jas.png" />
 
   <!-- Firebase SDK -->
   <script type="module">
@@ -128,6 +152,7 @@
     const chatContainer = document.getElementById('chatContainer');
     const adminPanel = document.getElementById('adminPanel');
     const banPanel = document.getElementById('banPanel');
+    const bannedScreen = document.getElementById('bannedScreen');
     const userList = document.getElementById('userList');
     const bannedUserList = document.getElementById('bannedUserList');
     const authTitle = document.getElementById('authTitle');
@@ -140,6 +165,8 @@
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
     const viewBannedUsersButton = document.getElementById('viewBannedUsersButton');
+    const jumpscareButton = document.getElementById('jumpscareButton');
+    const jumpscareImage = document.getElementById('jumpscareImage');
 
     let isLogin = false;
 
@@ -194,9 +221,20 @@
         authContainer.classList.add('hidden');
         chatContainer.classList.remove('hidden');
 
-        // Check if the user is an admin
+        // Check if the user is banned
         const userRef = ref(database, `users/${user.uid}`);
         onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          if (userData && userData.banned) {
+            chatContainer.classList.add('hidden');
+            bannedScreen.classList.remove('hidden'); // Show banned screen
+            return;
+          }
+        });
+
+        // Check if the user is an admin
+        const userRefAdmin = ref(database, `users/${user.uid}`);
+        onValue(userRefAdmin, (snapshot) => {
           const userData = snapshot.val();
           if (userData && userData.isAdmin) {
             adminPanel.classList.remove('hidden');
@@ -212,83 +250,17 @@
         chatContainer.classList.add('hidden');
         adminPanel.classList.add('hidden');
         banPanel.classList.add('hidden');
+        bannedScreen.classList.add('hidden');
       }
     });
 
-    // Load all users in the admin panel
-    function loadUsers() {
-      const usersRef = ref(database, 'users');
-      onValue(usersRef, (snapshot) => {
-        userList.innerHTML = '';
-        snapshot.forEach((childSnapshot) => {
-          const userData = childSnapshot.val();
-          const userRow = document.createElement('div');
-          userRow.className = 'user-row';
-          userRow.innerHTML = `${userData.username} - Admin: ${userData.isAdmin} - Banned: ${userData.banned}
-            <button class="ban-button" data-user-id="${childSnapshot.key}">Ban</button>`;
-          userList.appendChild(userRow);
-        });
-
-        // Add event listeners for ban buttons
-        const banButtons = document.querySelectorAll('.ban-button');
-        banButtons.forEach((button) => {
-          button.addEventListener('click', (event) => {
-            const userId = event.target.getAttribute('data-user-id');
-            banUser(userId); // Call the banUser function
-          });
-        });
-      });
-    }
-
-    // View Banned Users
-    viewBannedUsersButton.addEventListener('click', () => {
-      banPanel.classList.remove('hidden');
-      loadBannedUsers(); // Load the banned users in the ban panel
+    // Jumpscare function
+    jumpscareButton.addEventListener('click', () => {
+      jumpscareImage.style.display = 'block'; // Show the jumpscare image
+      setTimeout(() => {
+        jumpscareImage.style.display = 'none'; // Hide the image after 2 seconds
+      }, 2000);
     });
-
-    // Load all banned users in the ban panel
-    function loadBannedUsers() {
-      const usersRef = ref(database, 'users');
-      onValue(usersRef, (snapshot) => {
-        bannedUserList.innerHTML = '';
-        snapshot.forEach((childSnapshot) => {
-          const userData = childSnapshot.val();
-          if (userData && userData.banned) {
-            const userRow = document.createElement('div');
-            userRow.className = 'ban-row';
-            userRow.innerHTML = `${userData.username} <button class="unban-button" data-user-id="${childSnapshot.key}">Unban</button>`;
-            bannedUserList.appendChild(userRow);
-          }
-        });
-
-        // Add event listeners for unban buttons
-        const unbanButtons = document.querySelectorAll('.unban-button');
-        unbanButtons.forEach((button) => {
-          button.addEventListener('click', (event) => {
-            const userId = event.target.getAttribute('data-user-id');
-            unbanUser(userId); // Call the unbanUser function
-          });
-        });
-      });
-    }
-
-    // Ban a user
-    function banUser(userId) {
-      update(ref(database, `users/${userId}`), {
-        banned: true
-      })
-      .then(() => loadUsers()) // Reload user list after banning
-      .catch((error) => alert(error.message));
-    }
-
-    // Unban a user
-    function unbanUser(userId) {
-      update(ref(database, `users/${userId}`), {
-        banned: false
-      })
-      .then(() => loadBannedUsers()) // Reload banned users list after unbanning
-      .catch((error) => alert(error.message));
-    }
 
     // Send a message
     sendButton.addEventListener('click', () => {
@@ -324,6 +296,78 @@
       messagesDiv.appendChild(messageDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
     });
+
+    // Load users for admin panel
+    function loadUsers() {
+      const usersRef = ref(database, 'users');
+      onValue(usersRef, (snapshot) => {
+        userList.innerHTML = ''; // Clear existing user list
+        snapshot.forEach((childSnapshot) => {
+          const userData = childSnapshot.val();
+          const userRow = document.createElement('div');
+          userRow.className = 'user-row';
+          userRow.innerHTML = `${userData.username} 
+            <button class="ban-button" data-user-id="${childSnapshot.key}">Ban</button>`;
+          userList.appendChild(userRow);
+        });
+
+        // Add event listeners for ban buttons
+        const banButtons = document.querySelectorAll('.ban-button');
+        banButtons.forEach((button) => {
+          button.addEventListener('click', (event) => {
+            const userId = event.target.getAttribute('data-user-id');
+            banUser(userId); // Call the banUser function
+          });
+        });
+      });
+    }
+
+    // Ban a user
+    function banUser(userId) {
+      update(ref(database, `users/${userId}`), {
+        banned: true
+      }).then(() => loadUsers());
+    }
+
+    // View banned users
+    viewBannedUsersButton.addEventListener('click', () => {
+      loadBannedUsers();
+    });
+
+    // Load banned users for admin panel
+    function loadBannedUsers() {
+      const bannedUsersRef = ref(database, 'users');
+      onValue(bannedUsersRef, (snapshot) => {
+        bannedUserList.innerHTML = ''; // Clear existing banned users list
+        snapshot.forEach((childSnapshot) => {
+          const userData = childSnapshot.val();
+          if (userData.banned) {
+            const userRow = document.createElement('div');
+            userRow.className = 'ban-row';
+            userRow.innerHTML = `${userData.username} 
+              <button class="unban-button" data-user-id="${childSnapshot.key}">Unban</button>`;
+            bannedUserList.appendChild(userRow);
+          }
+        });
+
+        // Add event listeners for unban buttons
+        const unbanButtons = document.querySelectorAll('.unban-button');
+        unbanButtons.forEach((button) => {
+          button.addEventListener('click', (event) => {
+            const userId = event.target.getAttribute('data-user-id');
+            unbanUser(userId); // Call the unbanUser function
+          });
+        });
+      });
+    }
+
+    // Unban a user
+    function unbanUser(userId) {
+      update(ref(database, `users/${userId}`), {
+        banned: false
+      }).then(() => loadBannedUsers());
+    }
+
   </script>
 </body>
 </html>
